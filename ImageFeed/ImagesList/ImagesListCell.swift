@@ -4,7 +4,7 @@ final class ImagesListCell: UITableViewCell {
     static let reuseIdentifier = "ImagesListCell"
     
     
-    @IBOutlet var dateLabel: UILabel!
-    @IBOutlet var cellImage: UIImageView!
-    @IBOutlet var likeButton: UIButton!
+    @IBOutlet weak var dateLabel: UILabel!
+    @IBOutlet weak var cellImage: UIImageView!
+    @IBOutlet weak var likeButton: UIButton!
 }
