@@ -42,7 +42,7 @@ final class AuthViewController: UIViewController {
 extension AuthViewController: WebViewViewControllerDelegate {
     
     func webViewViewController(_ vc: WebViewViewController, didAuthenticateWithCode code: String) {
-        vc.dismiss(animated: true)
+        navigationController?.popViewController(animated: true)
         
         fetchOAuthToken(code) { [weak self] result in
             guard let self else { return }
@@ -54,13 +54,12 @@ extension AuthViewController: WebViewViewControllerDelegate {
                 
             case .failure(let error):
                 print("[AuthViewController] Failed to fetch token: \(error)")
-                // TODO: Показать алерт с ошибкой
             }
         }
     }
     
     func webViewViewControllerDidCancel(_ vc: WebViewViewController) {
-        vc.dismiss(animated: true)
+        navigationController?.popViewController(animated: true)
     }
 }
 
