@@ -20,7 +20,7 @@ final class OAuth2Service {
         lastCode = code
         
         guard let request = makeOAuthTokenRequest(code: code) else {
-            print("[OAuth2Service] Failed to create URLRequest")
+            print("[OAuth2Service.fetchOAuthToken]: invalidRequest - failed to create URLRequest")
             lastCode = nil
             DispatchQueue.main.async {
                 completion(.failure(NetworkError.invalidRequest))
@@ -44,7 +44,7 @@ final class OAuth2Service {
                 if (error as NSError).code == NSURLErrorCancelled {
                     return
                 }
-                print("[OAuth2Service] Error: \(error)")
+                print("[OAuth2Service.fetchOAuthToken]: NetworkError - \(error)")
                 completion(.failure(error))
             }
         }
@@ -55,7 +55,7 @@ final class OAuth2Service {
     
     private func makeOAuthTokenRequest(code: String) -> URLRequest? {
         guard var urlComponents = URLComponents(string: "https://unsplash.com/oauth/token") else {
-            print("[OAuth2Service] Failed to create URLComponents")
+            print("[OAuth2Service.makeOAuthTokenRequest]: invalidRequest - failed to create URLComponents")
             return nil
         }
         
@@ -68,7 +68,7 @@ final class OAuth2Service {
         ]
         
         guard let url = urlComponents.url else {
-            print("[OAuth2Service] Failed to create URL from components")
+            print("[OAuth2Service.makeOAuthTokenRequest]: invalidRequest - failed to create URL")
             return nil
         }
         

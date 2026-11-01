@@ -27,6 +27,7 @@ final class ProfileService {
     private init() {}
     
     private var task: URLSessionTask?
+    private var lastTaskId: UUID?
     private let urlSession = URLSession.shared
     
     private(set) var profile: Profile?
@@ -35,17 +36,23 @@ final class ProfileService {
         task?.cancel()
         
         guard let request = makeProfileRequest(token: token) else {
-            print("[ProfileService] Failed to create profile request")
+            print("[ProfileService.fetchProfile]: invalidRequest - failed to create profile request")
             DispatchQueue.main.async {
                 completion(.failure(NetworkError.invalidRequest))
             }
             return
         }
         
+        let taskId = UUID()
+        lastTaskId = taskId
+        
         let task = urlSession.objectTask(for: request) { [weak self] (result: Result<ProfileResult, Error>) in
             guard let self else { return }
             
+            guard self.lastTaskId == taskId else { return }
+            
             self.task = nil
+            self.lastTaskId = nil
             
             switch result {
             case .success(let profileResult):
@@ -68,7 +75,7 @@ final class ProfileService {
                 if (error as NSError).code == NSURLErrorCancelled {
                     return
                 }
-                print("[ProfileService] Error: \(error)")
+                print("[ProfileService.fetchProfile]: NetworkError - \(error)")
                 completion(.failure(error))
             }
         }
@@ -79,7 +86,7 @@ final class ProfileService {
     
     private func makeProfileRequest(token: String) -> URLRequest? {
         guard let url = URL(string: Constants.defaultBaseURLString + "/me") else {
-            print("[ProfileService] Failed to create URL")
+            print("[ProfileService.makeProfileRequest]: invalidRequest - failed to create URL")
             return nil
         }
         

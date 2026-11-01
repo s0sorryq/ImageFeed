@@ -37,7 +37,7 @@ final class ProfileImageService {
         lastUsername = username
         
         guard let request = makeProfileImageRequest(username: username) else {
-            print("[ProfileImageService] Failed to create request")
+            print("[ProfileImageService.fetchProfileImageURL]: invalidRequest - failed to create request")
             lastUsername = nil
             DispatchQueue.main.async {
                 completion(.failure(NetworkError.invalidRequest))
@@ -70,7 +70,7 @@ final class ProfileImageService {
                 if (error as NSError).code == NSURLErrorCancelled {
                     return
                 }
-                print("[ProfileImageService] Error: \(error)")
+                print("[ProfileImageService.fetchProfileImageURL]: NetworkError - \(error)")
                 completion(.failure(error))
             }
         }
@@ -84,7 +84,7 @@ final class ProfileImageService {
             let token = OAuth2TokenStorage.shared.token,
             let url = URL(string: Constants.defaultBaseURLString + "/users/\(username)")
         else {
-            print("[ProfileImageService] Failed to create URL or get token")
+            print("[ProfileImageService.makeProfileImageRequest]: invalidRequest - failed to create URL or get token")
             return nil
         }
         

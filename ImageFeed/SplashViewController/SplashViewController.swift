@@ -4,6 +4,7 @@ final class SplashViewController: UIViewController {
     
     private let profileService = ProfileService.shared
     private let storage = OAuth2TokenStorage.shared
+    private var isFetchingProfile: Bool = false
     
     private let logoImageView: UIImageView = {
         let imageView = UIImageView()
@@ -22,6 +23,8 @@ final class SplashViewController: UIViewController {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        
+        guard !isFetchingProfile else { return }
         
         if let token = storage.token {
             fetchProfile(token: token)
@@ -73,12 +76,16 @@ final class SplashViewController: UIViewController {
     // MARK: - Profile
     
     private func fetchProfile(token: String) {
+        guard !isFetchingProfile else { return }
+        isFetchingProfile = true
+        
         UIBlockingProgressHUD.show()
         
         profileService.fetchProfile(token) { [weak self] result in
             UIBlockingProgressHUD.dismiss()
             
             guard let self else { return }
+            self.isFetchingProfile = false
             
             switch result {
             case .success(let profile):
@@ -118,7 +125,11 @@ final class SplashViewController: UIViewController {
 extension SplashViewController: AuthViewControllerDelegate {
     
     func didAuthenticate(_ vc: AuthViewController) {
-        guard let token = storage.token else { return }
-        fetchProfile(token: token)
+        dismiss(animated: true) { [weak self] in
+            guard let self else { return }
+            guard let token = self.storage.token else { return }
+            
+            self.fetchProfile(token: token)
+        }
     }
 }
