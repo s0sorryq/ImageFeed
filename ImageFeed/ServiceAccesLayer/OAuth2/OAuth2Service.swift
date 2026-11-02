@@ -1,13 +1,5 @@
 import Foundation
 
-enum NetworkError: Error {
-    case httpStatusCode(Int)
-    case urlRequestError(Error)
-    case urlSessionError
-    case invalidRequest
-    case decodingError(Error)
-}
-
 final class OAuth2Service {
     static let shared = OAuth2Service()
     
@@ -15,67 +7,45 @@ final class OAuth2Service {
     
     private let urlSession = URLSession.shared
     private var task: URLSessionTask?
+    private var lastCode: String?
     
     func fetchOAuthToken(_ code: String, completion: @escaping (Result<String, Error>) -> Void) {
         assert(Thread.isMainThread)
         
+        if task != nil, lastCode == code {
+            return
+        }
+        
         task?.cancel()
+        lastCode = code
         
         guard let request = makeOAuthTokenRequest(code: code) else {
-            print("[OAuth2Service] Failed to create URLRequest")
+            print("[OAuth2Service.fetchOAuthToken]: invalidRequest - failed to create URLRequest")
+            lastCode = nil
             DispatchQueue.main.async {
                 completion(.failure(NetworkError.invalidRequest))
             }
             return
         }
         
-        let task = urlSession.dataTask(with: request) { [weak self] data, response, error in
-            defer { self?.task = nil }
+        let task = urlSession.objectTask(for: request) { [weak self] (result: Result<OAuthTokenResponseBody, Error>) in
+            guard let self else { return }
             
-            if let error = error {
-                print("[OAuth2Service] Network error: \(error.localizedDescription)")
-                DispatchQueue.main.async {
-                    completion(.failure(NetworkError.urlRequestError(error)))
-                }
-                return
-            }
+            guard self.lastCode == code else { return }
             
-            guard let httpResponse = response as? HTTPURLResponse else {
-                print("[OAuth2Service] Invalid response type")
-                DispatchQueue.main.async {
-                    completion(.failure(NetworkError.urlSessionError))
-                }
-                return
-            }
+            self.task = nil
+            self.lastCode = nil
             
-            guard (200...299).contains(httpResponse.statusCode) else {
-                print("[OAuth2Service] HTTP error status code: \(httpResponse.statusCode)")
-                DispatchQueue.main.async {
-                    completion(.failure(NetworkError.httpStatusCode(httpResponse.statusCode)))
-                }
-                return
-            }
-            
-            guard let data = data else {
-                print("[OAuth2Service] No data received")
-                DispatchQueue.main.async {
-                    completion(.failure(NetworkError.urlSessionError))
-                }
-                return
-            }
-            
-            do {
-                let responseBody = try JSONDecoder().decode(OAuthTokenResponseBody.self, from: data)
-                let accessToken = responseBody.accessToken
+            switch result {
+            case .success(let body):
+                completion(.success(body.accessToken))
                 
-                DispatchQueue.main.async {
-                    completion(.success(accessToken))
+            case .failure(let error):
+                if (error as NSError).code == NSURLErrorCancelled {
+                    return
                 }
-            } catch {
-                print("[OAuth2Service] Decoding error: \(error)")
-                DispatchQueue.main.async {
-                    completion(.failure(NetworkError.decodingError(error)))
-                }
+                print("[OAuth2Service.fetchOAuthToken]: NetworkError - \(error)")
+                completion(.failure(error))
             }
         }
         
@@ -85,7 +55,7 @@ final class OAuth2Service {
     
     private func makeOAuthTokenRequest(code: String) -> URLRequest? {
         guard var urlComponents = URLComponents(string: "https://unsplash.com/oauth/token") else {
-            print("[OAuth2Service] Failed to create URLComponents")
+            print("[OAuth2Service.makeOAuthTokenRequest]: invalidRequest - failed to create URLComponents")
             return nil
         }
         
@@ -98,7 +68,7 @@ final class OAuth2Service {
         ]
         
         guard let url = urlComponents.url else {
-            print("[OAuth2Service] Failed to create URL from components")
+            print("[OAuth2Service.makeOAuthTokenRequest]: invalidRequest - failed to create URL")
             return nil
         }
         

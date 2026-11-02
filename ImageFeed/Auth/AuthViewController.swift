@@ -8,7 +8,9 @@ final class AuthViewController: UIViewController {
     
     private let showWebViewSegueIdentifier = "ShowWebView"
     private let oauth2Service = OAuth2Service.shared
-    private let storage = OAuth2TokenStorage()
+    private let storage = OAuth2TokenStorage.shared
+    
+    private var isFetchingToken = false
     
     weak var delegate: AuthViewControllerDelegate?
     
@@ -35,6 +37,19 @@ final class AuthViewController: UIViewController {
         navigationItem.backBarButtonItem = UIBarButtonItem(title: "", style: .plain, target: nil, action: nil)
         navigationItem.backBarButtonItem?.tintColor = UIColor(named: "ypBLack")
     }
+    
+    private func showLoginErrorAlert() {
+        let alert = UIAlertController(
+            title: "Что-то пошло не так",
+            message: "Не удалось войти в систему",
+            preferredStyle: .alert
+        )
+        
+        let action = UIAlertAction(title: "Ок", style: .default)
+        alert.addAction(action)
+        
+        present(alert, animated: true)
+    }
 }
 
 // MARK: - WebViewViewControllerDelegate
@@ -44,8 +59,16 @@ extension AuthViewController: WebViewViewControllerDelegate {
     func webViewViewController(_ vc: WebViewViewController, didAuthenticateWithCode code: String) {
         navigationController?.popViewController(animated: true)
         
+        guard !isFetchingToken else { return }
+        isFetchingToken = true
+        
+        UIBlockingProgressHUD.show()
+        
         fetchOAuthToken(code) { [weak self] result in
+            UIBlockingProgressHUD.dismiss()
+            
             guard let self else { return }
+            self.isFetchingToken = false
             
             switch result {
             case .success(let token):
@@ -53,7 +76,8 @@ extension AuthViewController: WebViewViewControllerDelegate {
                 self.delegate?.didAuthenticate(self)
                 
             case .failure(let error):
-                print("[AuthViewController] Failed to fetch token: \(error)")
+                print("[AuthViewController.fetchOAuthToken]: \(error)")
+                self.showLoginErrorAlert()
             }
         }
     }
